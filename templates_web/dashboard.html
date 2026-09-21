@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Campaign overview</p>
+    <h1>Outbound dashboard</h1>
+    <p class="muted">Review replies and delivery issues before the next send.</p>
+  </div>
+  <a class="btn primary" href="/prospects?status=pending">Review prospects</a>
+</div>
+
+<section class="overview-grid">
+  <div class="hero-panel">
+    <p class="eyebrow">Today's sending</p>
+    <div class="hero-number">{{ sent_today }} <span>/ {{ daily_limit }}</span></div>
+    <p class="muted">{{ remaining }} available today · {{ queued }} leads due</p>
+    <div class="progress-track" role="progressbar" aria-valuenow="{{ sent_today }}" aria-valuemin="0" aria-valuemax="{{ daily_limit }}"><div class="progress-fill" style="width: {{ (sent_today * 100 / daily_limit) | round(0) }}%"></div></div>
+  </div>
+  <div class="panel attention-panel">
+    <p class="eyebrow">Needs attention</p>
+    <div class="attention-list">
+      <a href="/prospects?status=replied"><b>{{ stats.replied or 0 }}</b><span>Replies to review</span></a>
+      <a href="/prospects?status=bounced"><b>{{ stats.bounced or 0 }}</b><span>Bounced leads</span></a>
+      <div><b>{{ failures }}</b><span>Send failures today</span></div>
+    </div>
+  </div>
+</section>
+
+{% if folder_issue %}
+<div class="banner bad"><b>Mailbox filing needs attention.</b> {{ folder_issue }}</div>
+{% endif %}
+
+<section class="kpis">
+  <div class="kpi"><span>Total leads</span><b>{{ stats.total }}</b></div>
+  <div class="kpi"><span>Pending</span><b>{{ stats.pending or 0 }}</b></div>
+  <div class="kpi"><span>Initial sent</span><b>{{ stats.sent or 0 }}</b></div>
+  <div class="kpi"><span>Unsubscribed</span><b>{{ stats.unsubscribed or 0 }}</b></div>
+</section>
+
+<section class="panel">
+  <div class="row between">
+    <div>
+      <h2>Send controls</h2>
+      <p class="muted">Check the inbox, then review the due queue before sending.</p>
+    </div>
+    <div class="row">
+      <button class="btn ghost" type="button" onclick="checkInbox()">Check inbox</button>
+      <button class="btn ghost" type="button" onclick="setupFolders()">Check campaign folders</button>
+      <a class="btn primary" href="/prospects?status=pending">Open pending leads</a>
+    </div>
+  </div>
+  <details class="auto-send">
+    <summary>Auto-send due queue</summary>
+    <p class="small">Sends the next due leads, with the daily limit enforced.</p>
+    <form id="autoSendForm">
+      <label for="sendLimit">Maximum emails</label>
+      <input id="sendLimit" type="number" name="limit" value="25" min="1" max="50" class="input-sm">
+      <button class="btn ghost" type="submit">Start sending</button>
+    </form>
+  </details>
+  <p id="sendStatus" class="inline-message" role="status"></p>
+</section>
+
+<section class="panel">
+  <h2>Recent activity</h2>
+  {% if recent %}
+  <ul class="events">
+    {% for e in recent %}
+    <li><span class="small">{{ e.at }}</span><b>{{ e.event_type|replace('_',' ') }}</b><span class="muted">{{ e.company_name or 'Mailbox' }}{% if e.detail %} · {{ e.detail }}{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No campaign activity yet.</p>
+  {% endif %}
+</section>
+
+<script>
+const message = document.getElementById('sendStatus');
+async function checkInbox() {
+  message.textContent = 'Checking inbox...';
+  try {
+    const r = await fetch('/inbox/check', {method: 'POST'});
+    const j = await r.json();
+    message.textContent = j.error ? 'Inbox check failed: ' + j.error :
+      j.skipped ? 'Inbox check skipped: IMAP is disabled.' :
+      `Checked ${j.checked} new messages. ${j.replies + j.positive + j.soft_no} replies, ${j.bounces} bounces, ${j.hard_stops} opt-outs.`;
+    if (!j.error && !j.skipped) setTimeout(() => location.reload(), 1500);
+  } catch (e) { message.textContent = 'Inbox check failed: ' + e.message; }
+}
+async function setupFolders() {
+  message.textContent = 'Checking campaign folders...';
+  try {
+    const r = await fetch('/mailbox/folders', {method: 'POST'});
+    const j = await r.json();
+    message.textContent = j.ok ? 'Campaign folders are ready in Peter’s mailbox.' : 'Folder check failed: ' + j.error;
+  } catch (e) { message.textContent = 'Folder check failed: ' + e.message; }
+}
+document.getElementById('autoSendForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!confirm('Send the due queue now?')) return;
+  const fd = new FormData(e.target);
+  const r = await fetch('/send/start', {method: 'POST', body: fd});
+  const j = await r.json();
+  message.textContent = j.status === 'started' ? 'Sending started.' : (j.error || j.status);
+  if (j.status === 'started') monitorSend();
+});
+async function monitorSend() {
+  try {
+    const r = await fetch('/send/progress');
+    const j = await r.json();
+    message.textContent = j.active
+      ? `Sending ${j.done} of ${j.total || 'due queue'}: ${j.current || 'starting'}`
+      : `Send run complete. Processed ${j.done} of ${j.total}.`;
+    if (j.active) setTimeout(monitorSend, 3000);
+    else setTimeout(() => location.reload(), 1200);
+  } catch (e) { message.textContent = 'Progress unavailable: ' + e.message; }
+}
+fetch('/send/progress').then(r => r.json()).then(j => { if (j.active) monitorSend(); });
+</script>
+{% endblock %}

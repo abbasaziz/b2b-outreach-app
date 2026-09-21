@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Add a lead</h2>
+<p class="small">Use this to test new templates, or to add a company you met at a networking event.</p>
+
+{% if error %}
+  <div class="banner bad">{{ error }}</div>
+{% endif %}
+
+{% if added %}
+  <div class="banner ok">
+    Lead added to the database.
+    {% if sent %}
+      Test email sent successfully.
+    {% elif sent is sameas false and prospect_id %}
+      Email send failed — check the console or logs.
+    {% endif %}
+    <a href="/prospect/{{ prospect_id }}">View it here</a>.
+  </div>
+{% endif %}
+
+<form action="/add-lead" method="post" class="form">
+  <div class="form-row">
+    <label for="company_name">Company name *</label>
+    <input id="company_name" name="company_name" required>
+  </div>
+
+  <div class="form-row">
+    <label for="decision_maker">Decision maker name</label>
+    <input id="decision_maker" name="decision_maker" placeholder="e.g. Dave Roberts">
+  </div>
+
+  <div class="form-row">
+    <label for="direct_email">Direct / primary email *</label>
+    <input id="direct_email" name="direct_email" type="email" required>
+  </div>
+
+  <div class="form-row">
+    <label for="company_email">Company email (CC)</label>
+    <input id="company_email" name="company_email" type="email">
+  </div>
+
+  <div class="form-row">
+    <label for="phone">Phone</label>
+    <input id="phone" name="phone">
+  </div>
+
+  <div class="form-row">
+    <label for="city_region">City / region</label>
+    <input id="city_region" name="city_region" placeholder="e.g. Manchester / North West">
+  </div>
+
+  <div class="form-row">
+    <label for="tier">Tier</label>
+    <select id="tier" name="tier">
+      <option value="A+">A+</option>
+      <option value="A">A</option>
+      <option value="B" selected>B</option>
+      <option value="C">C</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="personalization_hook">Personalisation hook</label>
+    <textarea id="personalization_hook" name="personalization_hook" rows="2"
+      placeholder="e.g. Noticed you cover Greater Manchester and do piano moves"></textarea>
+  </div>
+
+  <div class="form-row">
+    <label for="sales_angle">Sales angle (internal)</label>
+    <input id="sales_angle" name="sales_angle"
+      placeholder="e.g. Paid-lead consolidation">
+  </div>
+
+  <div class="form-row check">
+    <label>
+      <input type="checkbox" name="send_now" value="yes">
+      Send a test email immediately after adding
+    </label>
+  </div>
+
+  <div class="row">
+    <button type="submit" class="btn primary">Add lead</button>
+    <a class="btn ghost" href="/">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

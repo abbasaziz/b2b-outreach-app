@@ -1,0 +1,5 @@
+Hi {{first_name}},
+
+I will close the loop here. If {{company}} revisits its enquiry and quoting process, the MoverSync live demo is free to try whenever useful.
+
+You can reply to me directly if any questions come up.

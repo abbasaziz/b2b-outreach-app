@@ -1,0 +1,17 @@
+Hi {{first_name}},
+
+{{hook}}
+
+A quick question for you.
+
+When an enquiry comes in on a busy Friday, does the quote go out the same day? Or does it wait until Monday morning?
+
+In our experience, most removals firms lose a lot of jobs right there. The enquiry is warm when it arrives. By Monday, they have usually booked someone else.
+
+MoverSync fixes that. It pulls enquiries from all your lead sources into one place. Getamover, reallymoving, Compare My Move, your website, your phone. It sends a branded quote in minutes. It chases the follow ups automatically on days three, seven and fourteen. It shows you the margin on every job before you invoice.
+
+Nothing else on the market does all of that in one place for UK removals firms.
+
+Worth sixty seconds to see it.
+
+https://moversync.co.uk/demo

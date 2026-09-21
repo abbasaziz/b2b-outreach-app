@@ -1,0 +1,13 @@
+Hi {{first_name}},
+
+{{hook}}
+
+One thing I keep seeing with UK removals firms.
+
+Leads from Getamover, reallymoving, Compare My Move and your own website all land in different inboxes. By the time someone has put them in the same place, the customer has already booked someone else.
+
+MoverSync puts them all into one pipeline. Quotes go out in minutes. Follow ups run themselves. You can see margin per job and per lead source.
+
+Sixty second demo, no pitch.
+
+https://moversync.co.uk/demo

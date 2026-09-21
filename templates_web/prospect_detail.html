@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if saved %}
+  <div class="banner ok">Saved.</div>
+{% endif %}
+{% if sent == "1" %}
+  <div class="banner ok">Email sent successfully.</div>
+{% elif sent == "0" %}
+  <div class="banner bad">Email failed — check the log below for the SMTP error.</div>
+{% endif %}
+
+<h2>{{ prospect.company_name }}</h2>
+
+<section class="panel">
+  <h2>Send now</h2>
+  <p class="small">Review the message before sending. Suppressed leads are blocked.</p>
+  <div class="row preview-controls">
+    <label for="previewType">Preview</label>
+    <select id="previewType">
+      <option value="proposal">Initial email</option>
+      <option value="followup1">Follow-up 1</option>
+      <option value="followup2">Follow-up 2</option>
+      <option value="followup3">Final note</option>
+    </select>
+    <button type="button" class="btn ghost" onclick="loadPreview()">Show preview</button>
+  </div>
+  <div id="emailPreview" class="email-preview" hidden><b id="previewSubject"></b><iframe id="previewFrame" title="Email preview" sandbox></iframe></div>
+  <div class="row">
+    <form method="post" action="/prospect/{{ prospect.id }}/send-with" onsubmit="return confirm('Send Proposal?')">
+      <input type="hidden" name="template_type" value="proposal">
+      <button class="btn primary">Send Proposal</button>
+    </form>
+    <form method="post" action="/prospect/{{ prospect.id }}/send-with" onsubmit="return confirm('Send Followup 1?')">
+      <input type="hidden" name="template_type" value="followup1">
+      <button class="btn ghost">Send Followup 1</button>
+    </form>
+    <form method="post" action="/prospect/{{ prospect.id }}/send-with" onsubmit="return confirm('Send Followup 2?')">
+      <input type="hidden" name="template_type" value="followup2">
+      <button class="btn ghost">Send Followup 2</button>
+    </form>
+    <form method="post" action="/prospect/{{ prospect.id }}/send-with" onsubmit="return confirm('Send Followup 3 (breakup)?')">
+      <input type="hidden" name="template_type" value="followup3">
+      <button class="btn ghost">Send Followup 3</button>
+    </form>
+  </div>
+</section>
+<script>
+async function loadPreview() {
+  const type = document.getElementById('previewType').value;
+  const r = await fetch('/prospect/{{ prospect.id }}/preview?template_type=' + encodeURIComponent(type));
+  const j = await r.json();
+  const box = document.getElementById('emailPreview');
+  document.getElementById('previewSubject').textContent = j.subject || j.error;
+  document.getElementById('previewFrame').srcdoc = j.html || '';
+  box.hidden = false;
+}
+</script>
+
+<form method="post" action="/prospect/{{ prospect.id }}/edit" class="form">
+  <section class="panel">
+    <h2>Edit details</h2>
+
+    <div class="form-row">
+      <label>Company name</label>
+      <input name="company_name" value="{{ prospect.company_name or '' }}">
+    </div>
+
+    <div class="form-row">
+      <label>Decision maker</label>
+      <input name="decision_maker" value="{{ prospect.decision_maker or '' }}">
+    </div>
+
+    <div class="form-row">
+      <label>Direct email</label>
+      <input name="direct_email" value="{{ prospect.direct_email or '' }}">
+    </div>
+
+    <div class="form-row">
+      <label>Company email (CC)</label>
+      <input name="company_email" value="{{ prospect.company_email or '' }}">
+    </div>
+
+    <div class="form-row">
+      <label>Phone</label>
+      <input name="phone" value="{{ prospect.phone or '' }}">
+    </div>
+
+    <div class="form-row">
+      <label>City / region</label>
+      <input name="city_region" value="{{ prospect.city_region or '' }}">
+    </div>
+
+    <div class="form-row">
+      <label>Tier</label>
+      <select name="tier">
+        {% for t in ['A+', 'A', 'B', 'C'] %}
+        <option value="{{ t }}" {% if prospect.tier == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label>Status</label>
+      <select name="status">
+        {% for s in ['pending', 'sent', 'followup1', 'followup2', 'followup3', 'replied', 'bounced', 'unsubscribed', 'skipped'] %}
+        <option value="{{ s }}" {% if prospect.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label>Personalisation hook</label>
+      <textarea name="personalization_hook" rows="3">{{ prospect.personalization_hook or '' }}</textarea>
+    </div>
+
+    <div class="form-row">
+      <label>Sales angle (internal)</label>
+      <input name="sales_angle" value="{{ prospect.sales_angle or '' }}">
+    </div>
+
+    <div class="form-row">
+      <label>Internal notes</label>
+      <textarea name="notes" rows="3">{{ prospect.notes or '' }}</textarea>
+    </div>
+
+    <div class="row">
+      <button class="btn primary" type="submit">Save changes</button>
+      <a class="btn ghost" href="/prospects">Back to list</a>
+    </div>
+  </section>
+</form>
+
+<section class="panel">
+  <h2>Send history</h2>
+  <table class="table">
+    <thead><tr><th>When</th><th>Template</th><th>Subject</th><th>Result</th></tr></thead>
+    <tbody>
+    {% for l in logs %}
+      <tr>
+        <td class="small">{{ l.sent_at }}</td>
+        <td>{{ l.template }}</td>
+        <td class="small">{{ l.subject }}</td>
+        <td>{{ 'OK' if l.success else 'FAIL' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Events</h2>
+  <ul class="events">
+    {% for e in events %}
+      <li><span class="small">{{ e.at }}</span> <b>{{ e.event_type }}</b> <span class="muted">{{ e.detail }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% endblock %}

@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────
+# MoverSync Outreach — Configuration
+# ─────────────────────────────────────────────────────────────
+
+smtp:
+  host: smtp.zoho.com
+  port: 465
+  use_ssl: true          # true for 465, false for 587 (STARTTLS)
+  username: peter@moversync.co.uk
+  password: Abb0tt4b4d!@#
+  from_name: "Peter Wilson"
+  from_email: peter@moversync.co.uk
+  reply_to: peter@moversync.co.uk
+
+imap:
+  enabled: true          # set false if free plan disables IMAP
+  host: imap.zoho.com
+  port: 993
+  username: peter@moversync.co.uk
+  password: Abb0tt4b4d!@#
+  folder: INBOX
+
+# ── Folder names for saving sent copies (must match Zoho folder names) ──
+imap_folders:
+  proposals: "MoverSync/Initial"
+  followup1: "MoverSync/Follow-up 1"
+  followup2: "MoverSync/Follow-up 2"
+  followup3: "MoverSync/Final note"
+
+sending:
+  min_delay_seconds: 60
+  max_delay_seconds: 120
+  daily_limit: 50              # NEW: hard cap 50/day
+  send_window_start: 9
+  send_window_end: 17
+
+followup:
+  day3_enabled: true
+  day7_enabled: true
+  day14_enabled: true
+
+ui:
+  host: 127.0.0.1
+  port: 5000

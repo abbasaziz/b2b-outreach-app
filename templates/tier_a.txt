@@ -1,0 +1,15 @@
+Hi {{first_name}},
+
+{{hook}}
+
+Quick question.
+
+When a customer asks for a quote on a busy day, does it go out the same day? Or the next morning?
+
+Most removals firms lose a lot of jobs to that gap. Leads from Getamover, reallymoving and your website all arrive at the same time. If your team cannot respond fast, they go elsewhere.
+
+MoverSync is a CRM built only for UK removals firms. It gathers every enquiry into one place. It sends quotes in minutes. It chases the follow ups without anyone having to remember. It shows you where the profit is on every job.
+
+One minute to look.
+
+https://moversync.co.uk/demo

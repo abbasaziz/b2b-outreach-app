@@ -1,0 +1,5 @@
+Hi {{first_name}},
+
+Following up on my note about {{company}}'s enquiry and quoting process. The free MoverSync demo shows how a lead moves through quote, follow-up and booking.
+
+If it looks relevant, just reply and I can answer any questions.

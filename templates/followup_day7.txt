@@ -1,0 +1,5 @@
+Hi {{first_name}},
+
+If keeping track of quote follow-ups is on {{company}}'s list, the free MoverSync demo is the quickest way to see what I mean.
+
+I would welcome your thoughts if you have a few minutes to try it.

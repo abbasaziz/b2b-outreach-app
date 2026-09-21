@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row between">
+  <h2>Prospects ({{ prospects|length }})</h2>
+  <div class="row">
+    <a class="btn ghost" href="/prospects">Clear filters</a>
+    <a class="btn primary" href="/add-lead">+ Add lead</a>
+  </div>
+</div>
+
+<div id="bulkResult" class="status" style="margin-bottom: 12px;"></div>
+
+<form id="bulkForm">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="check"><input type="checkbox" id="selectAll" title="Select all"></th>
+          <th>#</th><th>Tier</th><th>Company</th><th>Contact</th>
+          <th>Email</th><th>Status</th><th>Sent</th><th>Last sent</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in prospects %}
+        <tr>
+          <td class="check">
+            <input type="checkbox" class="lead-check" value="{{ p.id }}">
+          </td>
+          <td>{{ p.priority_rank }}</td>
+          <td><span class="tier t-{{ p.tier|replace('+','p')|replace(' ','') }}">{{ p.tier }}</span></td>
+          <td><a href="/prospect/{{ p.id }}">{{ p.company_name }}</a></td>
+          <td>{{ p.decision_maker or '—' }}</td>
+          <td class="small">{{ p.direct_email or '—' }}</td>
+          <td><span class="status s-{{ p.status }}">{{ p.status }}</span></td>
+          <td>{{ p.emails_sent or 0 }}</td>
+          <td class="small">{{ p.last_sent_at or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bulk-bar" id="bulkBar">
+    <div class="bulk-info"><b id="selectedCount">0</b> selected</div>
+    <div class="row">
+      <button type="button" class="btn primary" onclick="submitBulk('proposal')">Send Proposal</button>
+      <button type="button" class="btn ghost" onclick="submitBulk('followup1')">Send Followup 1</button>
+      <button type="button" class="btn ghost" onclick="submitBulk('followup2')">Send Followup 2</button>
+      <button type="button" class="btn ghost" onclick="submitBulk('followup3')">Send Followup 3</button>
+      <button type="button" class="btn ghost" onclick="clearSelection()">Clear</button>
+    </div>
+  </div>
+</form>
+
+<script>
+const checks = document.querySelectorAll('.lead-check');
+const selectAll = document.getElementById('selectAll');
+const bar = document.getElementById('bulkBar');
+const countEl = document.getElementById('selectedCount');
+
+function updateBar() {
+  const n = document.querySelectorAll('.lead-check:checked').length;
+  countEl.textContent = n;
+  bar.classList.toggle('active', n > 0);
+  if (selectAll) {
+    selectAll.checked = (n === checks.length && checks.length > 0);
+    selectAll.indeterminate = (n > 0 && n < checks.length);
+  }
+}
+
+selectAll?.addEventListener('change', () => {
+  checks.forEach(c => c.checked = selectAll.checked);
+  updateBar();
+});
+
+checks.forEach(c => c.addEventListener('change', updateBar));
+
+function clearSelection() {
+  checks.forEach(c => c.checked = false);
+  if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+  updateBar();
+}
+
+async function submitBulk(template) {
+  const ids = Array.from(document.querySelectorAll('.lead-check:checked'))
+    .map(c => c.value);
+
+  const result = document.getElementById('bulkResult');
+
+  if (!ids.length) { result.textContent = 'Select at least one lead first.'; return; }
+  if (ids.length > 50) { result.textContent = 'Maximum 50 leads per send.'; return; }
+
+  const label = {
+    proposal: 'Proposal',
+    followup1: 'Followup 1',
+    followup2: 'Followup 2',
+    followup3: 'Followup 3',
+  }[template];
+
+  if (!confirm(`Send ${label} to ${ids.length} lead(s)?`)) return;
+
+  result.textContent = 'Starting…';
+
+  const fd = new FormData();
+  fd.append('ids', ids.join(','));
+  fd.append('template', template);
+
+  const r = await fetch('/send/bulk', { method: 'POST', body: fd });
+  const j = await r.json();
+
+  if (j.status === 'started') {
+    result.textContent = `Sending ${label} to ${j.total} lead(s). This can take up to ${j.total} minutes.`;
+    pollProgress(ids.length);
+  } else if (j.status === 'limit') {
+    result.textContent = `Daily limit reached. You've sent ${j.sent} of ${j.limit} today.`;
+  } else if (j.status === 'already_running') {
+    result.textContent = 'A send is already running. Wait for it to finish.';
+  } else {
+    result.textContent = 'Error: ' + (j.error || 'unknown');
+  }
+}
+
+function pollProgress(expected) {
+  const tick = setInterval(async () => {
+    const r = await fetch('/send/progress');
+    const j = await r.json();
+    const result = document.getElementById('bulkResult');
+    if (j.active) {
+      result.textContent = `Sending… ${j.done}/${j.total} — currently on: ${j.current}`;
+    } else {
+      clearInterval(tick);
+      result.textContent = `Done. Sent ${j.done} of ${j.total}. Refreshing…`;
+      setTimeout(() => location.reload(), 1500);
+    }
+  }, 3000);
+}
+
+updateBar();
+</script>
+
+{% endblock %}
