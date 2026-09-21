@@ -9,32 +9,82 @@
   </div>
 </div>
 
-<div id="bulkResult" class="status" style="margin-bottom: 12px;"></div>
+<!-- Status filter chips -->
+<div class="chips-row">
+  <span class="chips-label">Status:</span>
+  <a class="chip {% if not status_filter %}is-active{% endif %}" href="/prospects{% if tier_filter %}?tier={{ tier_filter|urlencode }}{% endif %}">
+    all <span class="chip-count">{{ status_counts.values() | sum }}</span>
+  </a>
+  {% for s in ['pending','sent','followup1','followup2','followup3','replied','bounced','unsubscribed','skipped'] %}
+    <a class="chip s-{{ s }} {% if status_filter == s %}is-active{% endif %}"
+       href="/prospects?status={{ s }}{% if tier_filter %}&tier={{ tier_filter|urlencode }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ direction }}{% endif %}">
+      {{ s }} <span class="chip-count">{{ status_counts.get(s, 0) }}</span>
+    </a>
+  {% endfor %}
+</div>
+
+<!-- Tier filter chips -->
+<div class="chips-row">
+  <span class="chips-label">Tier:</span>
+  <a class="chip {% if not tier_filter %}is-active{% endif %}" href="/prospects{% if status_filter %}?status={{ status_filter }}{% endif %}">all</a>
+  {% for t in ['A+','A','B','C'] %}
+    <a class="chip t-{{ t|replace('+','p') }} {% if tier_filter == t %}is-active{% endif %}"
+       href="/prospects?tier={{ t|urlencode }}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+      {{ t }} <span class="chip-count">{{ tier_counts.get(t, 0) }}</span>
+    </a>
+  {% endfor %}
+</div>
+
+<div id="bulkResult" class="status" style="margin: 12px 0;"></div>
 
 <form id="bulkForm">
   <div class="table-wrap">
     <table class="table">
       <thead>
         <tr>
-          <th class="check"><input type="checkbox" id="selectAll" title="Select all"></th>
-          <th>#</th><th>Tier</th><th>Company</th><th>Contact</th>
-          <th>Email</th><th>Status</th><th>Sent</th><th>Last sent</th>
+          <th class="check"><input type="checkbox" id="selectAll"></th>
+          {% macro sort_header(key, label) %}
+            {% set new_dir = 'desc' if sort == key and direction == 'asc' else 'asc' %}
+            <th>
+              <a href="/prospects?sort={{ key }}&dir={{ new_dir }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if tier_filter %}&tier={{ tier_filter|urlencode }}{% endif %}">
+                {{ label }}
+                {% if sort == key %}<span class="sort-ind">{{ '▲' if direction == 'asc' else '▼' }}</span>{% endif %}
+              </a>
+            </th>
+          {% endmacro %}
+          {{ sort_header('priority_rank', '#') }}
+          {{ sort_header('tier', 'Tier') }}
+          {{ sort_header('company', 'Company') }}
+          <th>Contact</th>
+          <th>Email</th>
+          {{ sort_header('status', 'Status') }}
+          {{ sort_header('sent', 'Sent') }}
+          {{ sort_header('last_sent', 'Last sent') }}
+          <th class="actions">Actions</th>
         </tr>
       </thead>
       <tbody>
       {% for p in prospects %}
-        <tr>
-          <td class="check">
-            <input type="checkbox" class="lead-check" value="{{ p.id }}">
-          </td>
+        <tr data-id="{{ p.id }}">
+          <td class="check"><input type="checkbox" class="lead-check" value="{{ p.id }}"></td>
           <td>{{ p.priority_rank }}</td>
           <td><span class="tier t-{{ p.tier|replace('+','p')|replace(' ','') }}">{{ p.tier }}</span></td>
           <td><a href="/prospect/{{ p.id }}">{{ p.company_name }}</a></td>
           <td>{{ p.decision_maker or '—' }}</td>
           <td class="small">{{ p.direct_email or '—' }}</td>
-          <td><span class="status s-{{ p.status }}">{{ p.status }}</span></td>
+          <td>
+            <select class="status-select s-{{ p.status }}"
+                    onchange="changeStatus({{ p.id }}, this)">
+              {% for s in ['pending','sent','followup1','followup2','followup3','replied','bounced','unsubscribed','skipped'] %}
+                <option value="{{ s }}" {% if p.status == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </td>
           <td>{{ p.emails_sent or 0 }}</td>
           <td class="small">{{ p.last_sent_at or '' }}</td>
+          <td class="actions">
+            <a class="btn tiny" href="/prospect/{{ p.id }}">Open</a>
+          </td>
         </tr>
       {% endfor %}
       </tbody>
@@ -45,9 +95,9 @@
     <div class="bulk-info"><b id="selectedCount">0</b> selected</div>
     <div class="row">
       <button type="button" class="btn primary" onclick="submitBulk('proposal')">Send Proposal</button>
-      <button type="button" class="btn ghost" onclick="submitBulk('followup1')">Send Followup 1</button>
-      <button type="button" class="btn ghost" onclick="submitBulk('followup2')">Send Followup 2</button>
-      <button type="button" class="btn ghost" onclick="submitBulk('followup3')">Send Followup 3</button>
+      <button type="button" class="btn ghost" onclick="submitBulk('followup1')">Followup 1</button>
+      <button type="button" class="btn ghost" onclick="submitBulk('followup2')">Followup 2</button>
+      <button type="button" class="btn ghost" onclick="submitBulk('followup3')">Followup 3</button>
       <button type="button" class="btn ghost" onclick="clearSelection()">Clear</button>
     </div>
   </div>
@@ -73,7 +123,6 @@ selectAll?.addEventListener('change', () => {
   checks.forEach(c => c.checked = selectAll.checked);
   updateBar();
 });
-
 checks.forEach(c => c.addEventListener('change', updateBar));
 
 function clearSelection() {
@@ -82,26 +131,55 @@ function clearSelection() {
   updateBar();
 }
 
+async function changeStatus(pid, selectEl) {
+  const newStatus = selectEl.value;
+  const oldClass = selectEl.className;
+
+  // Optimistic UI
+  selectEl.className = 'status-select s-' + newStatus;
+
+  try {
+    const r = await fetch(`/api/prospect/${pid}/status`, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'fetch' },
+      body: (() => { const fd = new FormData(); fd.append('status', newStatus); return fd; })(),
+    });
+
+    // Read as text first so we can show the real error if it's not JSON
+    const text = await r.text();
+    let j;
+    try {
+      j = JSON.parse(text);
+    } catch (parseErr) {
+      console.error('Non-JSON response from server:', text.slice(0, 300));
+      alert('Server error. Check the black window for details.\n\nHTTP ' + r.status);
+      selectEl.className = oldClass;
+      return;
+    }
+
+    if (!j.ok) {
+      alert('Failed to update status: ' + (j.error || 'unknown'));
+      selectEl.className = oldClass;
+    }
+  } catch (e) {
+    alert('Network error: ' + e.message);
+    selectEl.className = oldClass;
+  }
+}
+
+// ── Bulk send (unchanged) ──────────────────────────────────
 async function submitBulk(template) {
   const ids = Array.from(document.querySelectorAll('.lead-check:checked'))
     .map(c => c.value);
 
   const result = document.getElementById('bulkResult');
-
-  if (!ids.length) { result.textContent = 'Select at least one lead first.'; return; }
+  if (!ids.length) { result.textContent = 'Select at least one lead.'; return; }
   if (ids.length > 50) { result.textContent = 'Maximum 50 leads per send.'; return; }
 
-  const label = {
-    proposal: 'Proposal',
-    followup1: 'Followup 1',
-    followup2: 'Followup 2',
-    followup3: 'Followup 3',
-  }[template];
-
+  const label = { proposal:'Proposal', followup1:'Followup 1', followup2:'Followup 2', followup3:'Followup 3' }[template];
   if (!confirm(`Send ${label} to ${ids.length} lead(s)?`)) return;
 
   result.textContent = 'Starting…';
-
   const fd = new FormData();
   fd.append('ids', ids.join(','));
   fd.append('template', template);
@@ -110,18 +188,18 @@ async function submitBulk(template) {
   const j = await r.json();
 
   if (j.status === 'started') {
-    result.textContent = `Sending ${label} to ${j.total} lead(s). This can take up to ${j.total} minutes.`;
-    pollProgress(ids.length);
+    result.textContent = `Sending ${label} to ${j.total} lead(s).`;
+    pollProgress();
   } else if (j.status === 'limit') {
-    result.textContent = `Daily limit reached. You've sent ${j.sent} of ${j.limit} today.`;
+    result.textContent = `Daily limit reached. Sent ${j.sent} of ${j.limit}.`;
   } else if (j.status === 'already_running') {
-    result.textContent = 'A send is already running. Wait for it to finish.';
+    result.textContent = 'A send is already running.';
   } else {
     result.textContent = 'Error: ' + (j.error || 'unknown');
   }
 }
 
-function pollProgress(expected) {
+function pollProgress() {
   const tick = setInterval(async () => {
     const r = await fetch('/send/progress');
     const j = await r.json();

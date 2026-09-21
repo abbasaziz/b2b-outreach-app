@@ -7,7 +7,8 @@ import time
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 
 from db import (init, connect, get_stats, update_prospect,
-                fetch_due_prospects, sent_today_count)
+                fetch_due_prospects, sent_today_count, log_event)
+
 import importer
 import sender as smtplib_sender
 import inbox
@@ -22,6 +23,19 @@ DAILY_LIMIT = 50  # hard cap regardless of config
 app = Flask(__name__, template_folder="templates_web", static_folder="static")
 init()
 
+@app.errorhandler(404)
+def _not_found(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "error": "not found"}), 404
+    return "Not found", 404
+
+
+@app.errorhandler(500)
+def _server_error(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "error": "server error", "detail": str(e)}), 500
+    return "Server error", 500
+
 _sending_thread = None
 _sending_active = False
 _sending_progress = {"done": 0, "total": 0, "current": "", "last_ok": None}
@@ -35,31 +49,18 @@ def dashboard():
     remaining = max(0, DAILY_LIMIT - sent_today)
     queued = len(fetch_due_prospects(limit=500))
 
-    # latest 5 events for the activity feed
+    from db import get_status_counts, get_tier_counts
+    status_counts = get_status_counts()
+    tier_counts = get_tier_counts()
+
     conn = connect()
     recent = conn.execute("""
         SELECT e.*, p.company_name
         FROM events e
         LEFT JOIN prospects p ON p.id = e.prospect_id
         ORDER BY e.id DESC
-        LIMIT 8
+        LIMIT 10
     """).fetchall()
-    failures = conn.execute("""
-        SELECT COUNT(*) FROM send_log
-        WHERE success = 0 AND date(sent_at) = date('now')
-    """).fetchone()[0]
-    folder_issue = conn.execute("""
-        SELECT detail FROM events WHERE event_type = 'imap_save_error'
-        ORDER BY id DESC LIMIT 1
-    """).fetchone()
-    latest_folder_save = conn.execute("""
-        SELECT id FROM events WHERE event_type = 'imap_save_ok'
-        ORDER BY id DESC LIMIT 1
-    """).fetchone()
-    latest_folder_error = conn.execute("""
-        SELECT id FROM events WHERE event_type = 'imap_save_error'
-        ORDER BY id DESC LIMIT 1
-    """).fetchone()
     conn.close()
 
     return render_template(
@@ -69,18 +70,31 @@ def dashboard():
         daily_limit=DAILY_LIMIT,
         remaining=remaining,
         queued=queued,
+        status_counts=status_counts,
+        tier_counts=tier_counts,
         recent=[dict(r) for r in recent],
-        failures=failures,
-        folder_issue=folder_issue[0] if folder_issue and
-            (not latest_folder_save or latest_folder_error[0] > latest_folder_save[0]) else None,
     )
-
 
 # ── Prospects list ───────────────────────────────────────────────────
 @app.route("/prospects")
 def prospects():
     status_filter = request.args.get("status", "")
     tier_filter = request.args.get("tier", "")
+    sort = request.args.get("sort", "priority_rank")
+    direction = request.args.get("dir", "asc")
+
+    # Whitelist sort columns to prevent SQL injection
+    allowed_sort = {
+        "priority_rank": "priority_rank",
+        "tier": "tier",
+        "company": "company_name",
+        "status": "status",
+        "sent": "emails_sent",
+        "last_sent": "last_sent_at",
+    }
+    sort_col = allowed_sort.get(sort, "priority_rank")
+    sort_dir = "DESC" if direction == "desc" else "ASC"
+
     q = "SELECT * FROM prospects WHERE 1=1"
     args = []
     if status_filter:
@@ -89,14 +103,26 @@ def prospects():
     if tier_filter:
         q += " AND tier = ?"
         args.append(tier_filter)
-    q += " ORDER BY priority_rank ASC LIMIT 500"
+    q += f" ORDER BY {sort_col} {sort_dir} LIMIT 500"
 
     conn = connect()
     rows = [dict(r) for r in conn.execute(q, args).fetchall()]
     conn.close()
-    return render_template("prospects.html", prospects=rows,
-                           status_filter=status_filter,
-                           tier_filter=tier_filter)
+
+    from db import get_status_counts, get_tier_counts
+    status_counts = get_status_counts()
+    tier_counts = get_tier_counts()
+
+    return render_template(
+        "prospects.html",
+        prospects=rows,
+        status_filter=status_filter,
+        tier_filter=tier_filter,
+        sort=sort,
+        direction=direction,
+        status_counts=status_counts,
+        tier_counts=tier_counts,
+    )
 
 
 # ── Prospect detail + edit ───────────────────────────────────────────
@@ -390,6 +416,20 @@ def api_today():
         "daily_limit": DAILY_LIMIT,
     })
 
+@app.route("/api/prospect/<int:pid>/status", methods=["POST"])
+def api_prospect_status(pid):
+    """Inline status change from the prospects list. Returns JSON."""
+    new_status = request.form.get("status", "").strip()
+    allowed = {"pending", "sent", "followup1", "followup2", "followup3",
+               "replied", "bounced", "unsubscribed", "skipped"}
+    if new_status not in allowed:
+        return jsonify({"ok": False, "error": "invalid status"}), 400
+
+    update_prospect(pid, status=new_status)
+    log_event(pid, "status_changed", f"→ {new_status}")
+
+    from db import get_status_counts
+    return jsonify({"ok": True, "status": new_status, "counts": get_status_counts()})
 
 if __name__ == "__main__":
     app.run(host=CFG["ui"]["host"], port=CFG["ui"]["port"], debug=False)

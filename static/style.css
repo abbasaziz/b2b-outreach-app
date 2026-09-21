@@ -272,3 +272,99 @@ a:hover { text-decoration: underline; }
   .attention-list { grid-template-columns:repeat(3,1fr); }
   .panel, .hero-panel { padding:18px; }
 }
+/* ── Filter chips row ───────────────────────────────────── */
+.chips-row {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 8px; margin-bottom: 10px;
+}
+.chips-label {
+  font-size: 12px; color: var(--grey);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-right: 6px;
+}
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--white);
+  border: 1px solid var(--grey-lt);
+  color: var(--black);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.chip:hover { border-color: var(--blue); color: var(--blue); text-decoration: none; }
+.chip.is-active { background: var(--blue); color: var(--white); border-color: var(--blue); }
+.chip .chip-name { text-transform: capitalize; }
+.chip .chip-count {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.chip.is-active .chip-count { background: rgba(255,255,255,0.22); }
+
+/* Colored chips for statuses — the badge background matches the pill */
+.chip.s-pending      { background: #f3f4f6; border-color: #e5e7eb; color: #374151; }
+.chip.s-sent         { background: #dbeafe; border-color: #bfdbfe; color: #1e3a8a; }
+.chip.s-followup1    { background: #e0e7ff; border-color: #c7d2fe; color: #3730a3; }
+.chip.s-followup2    { background: #ede9fe; border-color: #ddd6fe; color: #5b21b6; }
+.chip.s-followup3    { background: #f5d0fe; border-color: #f0abfc; color: #701a75; }
+.chip.s-replied      { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
+.chip.s-bounced      { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+.chip.s-unsubscribed { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+.chip.s-skipped      { background: #f3f4f6; border-color: #e5e7eb; color: #9ca3af; }
+.chip.is-active { background: var(--blue) !important; color: var(--white) !important; border-color: var(--blue) !important; }
+
+.chip.t-Ap { background: #dbeafe; border-color: #bfdbfe; color: #1e3a8a; }
+.chip.t-A  { background: #e0e7ff; border-color: #c7d2fe; color: #3730a3; }
+.chip.t-B  { background: #f3f4f6; border-color: #e5e7eb; color: #374151; }
+.chip.t-C  { background: #f9fafb; border-color: #e5e7eb; color: #6b7280; }
+
+/* ── Inline status dropdown ─────────────────────────────── */
+.status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 22px 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid;
+  cursor: pointer;
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  transition: box-shadow 0.15s ease;
+}
+.status-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.15); }
+.status-select.s-pending      { background-color: #f3f4f6; border-color: #e5e7eb; color: #374151; }
+.status-select.s-sent         { background-color: #dbeafe; border-color: #bfdbfe; color: #1e3a8a; }
+.status-select.s-followup1    { background-color: #e0e7ff; border-color: #c7d2fe; color: #3730a3; }
+.status-select.s-followup2    { background-color: #ede9fe; border-color: #ddd6fe; color: #5b21b6; }
+.status-select.s-followup3    { background-color: #f5d0fe; border-color: #f0abfc; color: #701a75; }
+.status-select.s-replied      { background-color: #dcfce7; border-color: #bbf7d0; color: #166534; }
+.status-select.s-bounced      { background-color: #fee2e2; border-color: #fecaca; color: #991b1b; }
+.status-select.s-unsubscribed { background-color: #fef3c7; border-color: #fde68a; color: #92400e; }
+.status-select.s-skipped      { background-color: #f3f4f6; border-color: #e5e7eb; color: #9ca3af; }
+
+/* ── Sortable table headers ─────────────────────────────── */
+.table th a {
+  color: var(--grey);
+  text-decoration: none;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.table th a:hover { color: var(--blue); }
+.sort-ind { font-size: 9px; color: var(--blue); }
+
+/* ── Tiny buttons and action cell ───────────────────────── */
+.btn.tiny {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.table .actions { width: 70px; text-align: right; }

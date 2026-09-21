@@ -202,7 +202,6 @@ def render_html(plain_text):
         is_signature = (
             block_text.startswith("Peter")
             or "MoverSync" in block_text and len(block_text) < 120
-            or "0330 000 0000" in block_text
         )
         style = (
             f'font-size: 14px; color: {MUTED}; line-height: 1.55;'
@@ -271,8 +270,8 @@ def render_html(plain_text):
                        border-top: 1px solid {BORDER};
                        background: #fafafa;">
               <div style="font-size: 12px; color: {MUTED}; line-height: 1.5;">
-                Peter Wilson, MoverSync<br>
-                0330 000 0000 &nbsp;&middot;&nbsp;
+                Peter Wilson,<br>
+                MoverSync<br>
                 <a href="https://moversync.co.uk" style="color: {MUTED}; text-decoration: underline;">moversync.co.uk</a>
               </div>
               <div style="font-size: 11px; color: #9ca3af; margin-top: 10px; line-height: 1.5;">
